@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:quiver/async.dart';
+import 'package:rflutter_alert/rflutter_alert.dart';
+import 'quiz_brain.dart';
+
+GeneralQuizBrain quizBrain = new GeneralQuizBrain();
 
 void main() => runApp(Quizzler());
 
@@ -25,6 +30,80 @@ class QuizPage extends StatefulWidget {
 }
 
 class _QuizPageState extends State<QuizPage> {
+  List<Widget> scoreKeeper = [];
+  int total = 0;
+  int score = 0;
+
+  void checkAnswer(bool picked) {
+    if (picked == quizBrain.getAnswer()) {
+      correct();
+      score++;
+      total++;
+    } else {
+      wrong();
+      total++;
+    }
+  }
+
+  void correct() {
+    scoreKeeper.add(
+      Icon(
+        Icons.check,
+        color: Colors.green,
+      ),
+    );
+  }
+
+  void wrong() {
+    scoreKeeper.add(
+      Icon(
+        Icons.close,
+        color: Colors.red,
+      ),
+    );
+  }
+
+  void alert() {
+    Alert(
+      context: context,
+      title: 'Congratulations!',
+      desc: 'Your score is $score/$total.',
+      buttons: [
+        DialogButton(
+          color: Colors.grey,
+          child: Text(
+            'Restart',
+            style: TextStyle(color: Colors.white, fontSize: 20),
+          ),
+          onPressed: () => Navigator.pop(context),
+          width: 120,
+        )
+      ],
+    ).show();
+  }
+
+  int timerStart = 5;
+  int timerCurrent = 5;
+
+  void startTimer() {
+    CountdownTimer countDownTimer = new CountdownTimer(
+      new Duration(seconds: timerStart),
+      new Duration(seconds: 1),
+    );
+
+    var sub = countDownTimer.listen(null);
+    sub.onData((duration) {
+      setState(() {
+        timerCurrent = timerStart - duration.elapsed.inSeconds;
+      });
+    });
+
+    sub.onDone(() {
+      alert();
+      sub.cancel();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -32,12 +111,12 @@ class _QuizPageState extends State<QuizPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Expanded(
-          flex: 5,
+          flex: 15,
           child: Padding(
             padding: EdgeInsets.all(10.0),
             child: Center(
               child: Text(
-                'This is where the question text will go.',
+                quizBrain.getQuestion(),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 25.0,
@@ -48,10 +127,10 @@ class _QuizPageState extends State<QuizPage> {
           ),
         ),
         Expanded(
+          flex: 3,
           child: Padding(
             padding: EdgeInsets.all(15.0),
             child: FlatButton(
-              textColor: Colors.white,
               color: Colors.green,
               child: Text(
                 'True',
@@ -61,12 +140,21 @@ class _QuizPageState extends State<QuizPage> {
                 ),
               ),
               onPressed: () {
-                //The user picked true.
+                setState(() {
+                  checkAnswer(true);
+                  if (!quizBrain.nextQuestion()) {
+                    alert();
+                    scoreKeeper = [];
+                    total = 0;
+                    score = 0;
+                  }
+                });
               },
             ),
           ),
         ),
         Expanded(
+          flex: 3,
           child: Padding(
             padding: EdgeInsets.all(15.0),
             child: FlatButton(
@@ -79,19 +167,27 @@ class _QuizPageState extends State<QuizPage> {
                 ),
               ),
               onPressed: () {
-                //The user picked false.
+                setState(() {
+                  checkAnswer(false);
+                  if (!quizBrain.nextQuestion()) {
+                    alert();
+                    scoreKeeper = [];
+                    total = 0;
+                    score = 0;
+                  }
+                });
               },
             ),
           ),
         ),
-        //TODO: Add a Row here as your score keeper
+        Expanded(
+          flex: 1,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: scoreKeeper,
+          ),
+        ),
       ],
     );
   }
 }
-
-/*
-question1: 'You can lead a cow down stairs but not up stairs.', false,
-question2: 'Approximately one quarter of human bones are in the feet.', true,
-question3: 'A slug\'s blood is green.', true,
-*/
